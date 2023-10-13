@@ -5,16 +5,18 @@ const { developmentChains } = require("../../helper-hardhat-config")
 !developmentChains.includes(network.name)
     ? describe.skip
     : describe("FundMe", function () {
+
           let fundMe
           let mockV3Aggregator
-          let deployer
+          let deployer, addr1, addr2;
           const sendValue = ethers.utils.parseEther("1")
           beforeEach(async () => {
               // const accounts = await ethers.getSigners()
               // deployer = accounts[0]
-              deployer = (await getNamedAccounts()).deployer
-              await deployments.fixture(["all"])
-              fundMe = await ethers.getContract("FundMe", deployer)
+              deployer = (await getNamedAccounts()).deployer;
+              await deployments.fixture(["all"]);
+              [ , addr2 ] = await ethers.getSigners();
+              fundMe = await ethers.getContract("FundMe", deployer);
               mockV3Aggregator = await ethers.getContract(
                   "MockV3Aggregator",
                   deployer
@@ -25,6 +27,18 @@ const { developmentChains } = require("../../helper-hardhat-config")
               it("sets the aggregator addresses correctly", async () => {
                   const response = await fundMe.getPriceFeed()
                   assert.equal(response, mockV3Aggregator.address)
+              })
+
+              it("sets owner addresses correctly", async () => {
+                expect(await fundMe.getOwner()).to.be.equal(deployer);
+              })
+ 
+              it("check target funds are true", async () => {
+                  expect(await fundMe.getTargetFunds()).to.be.equal(1000000);
+              })
+
+              it("check deadline is true", async () => {
+                expect(await fundMe.getDeadLine()).to.be.equal(1697229430);
               })
           })
 
@@ -45,6 +59,15 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   )
                   assert.equal(response.toString(), sendValue.toString())
               })
+
+              
+              it("Updates the amount funded data structure", async () => {
+                // addr1 funds 
+                await expect( fundMe.connect( addr2 ).fund({ value: sendValue }))
+                .to.emit( fundMe, "Funded" ).withArgs( await addr2.address, sendValue );
+
+              })
+
               it("Adds funder to array of funders", async () => {
                   await fundMe.fund({ value: sendValue })
                   const response = await fundMe.getFunder(0)
@@ -63,7 +86,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       await fundMe.provider.getBalance(deployer)
 
                   // Act
-                  const transactionResponse = await fundMe.withdraw()
+                  const transactionResponse = await fundMe.cheaperWithdraw()
                   const transactionReceipt = await transactionResponse.wait()
                   const { gasUsed, effectiveGasPrice } = transactionReceipt
                   const gasCost = gasUsed.mul(effectiveGasPrice)
@@ -140,7 +163,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       accounts[1]
                   )
                   await expect(
-                      fundMeConnectedContract.withdraw()
+                      fundMeConnectedContract.cheaperWithdraw()
                   ).to.be.revertedWith("FundMe__NotOwner")
               })
           })

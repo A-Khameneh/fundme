@@ -19,7 +19,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     log("Deploying FundMe and waiting for confirmations...")
     const fundMe = await deploy("FundMe", {
         from: deployer,
-        args: [ethUsdPriceFeedAddress],
+        args: [1000000,1697229430,ethUsdPriceFeedAddress],
         log: true,
         // we need to wait if on a live network so we can verify properly
         waitConfirmations: network.config.blockConfirmations || 1,
