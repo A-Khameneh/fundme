@@ -20,8 +20,6 @@ contract FundMe {
     // State variables
     uint256 public constant MINIMUM_USD = 50 * 10**18;
     uint256 public deadline;
-    uint256 public targetFunds;
-    string public name;
     bool public fundsWithdrawn ;
     address private immutable i_owner;
     address[] private s_funders;
@@ -50,10 +48,9 @@ contract FundMe {
     //// private
     //// view / pure
 
-    constructor( uint256 _targetFunds, uint256 _deadline, address priceFeed ) {
+    constructor( uint256 _deadline, address priceFeed ) {
         s_priceFeed = AggregatorV3Interface(priceFeed);
         i_owner = msg.sender;
-        targetFunds = _targetFunds;
         deadline = _deadline;
     }
 
@@ -63,6 +60,7 @@ contract FundMe {
             msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
             "You need to spend more ETH!"
         );
+        require( (isFundEnabled() == true ) , "The event is not enable" );
         // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
         s_addressToAmountFunded[msg.sender] += msg.value;
         s_funders.push(msg.sender);
@@ -82,8 +80,11 @@ contract FundMe {
         }
         s_funders = new address[](0);
         // payable(msg.sender).transfer(address(this).balance);
-        (bool success, ) = i_owner.call{value: address(this).balance}("");
-        require(success);
+        uint256 amountToSend = address(this).balance;
+        (bool success, ) = i_owner.call{value: amountToSend}("");
+        fundsWithdrawn = true;
+        emit OwnerWithdrow(amountToSend);
+        require(success, "unable to send!");
     }
 
     /** @notice Gets the amount that an address has funded
@@ -114,7 +115,12 @@ contract FundMe {
         return deadline;
     }
 
-    function getTargetFunds() public view returns (uint) {
-        return targetFunds;
+    function isFundEnabled() public view returns(bool) {
+        if (block.timestamp > deadline || fundsWithdrawn) {
+            return false;
+        } else {
+            return true;
+        }
     }
+
 }

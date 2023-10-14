@@ -1,6 +1,7 @@
 const { assert, expect } = require("chai")
 const { network, deployments, ethers } = require("hardhat")
 const { developmentChains } = require("../../helper-hardhat-config")
+//const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 !developmentChains.includes(network.name)
     ? describe.skip
@@ -15,7 +16,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
               // deployer = accounts[0]
               deployer = (await getNamedAccounts()).deployer;
               await deployments.fixture(["all"]);
-              [ , addr2 ] = await ethers.getSigners();
+              [ , addr1, addr2, addr3 ] = await ethers.getSigners();
               fundMe = await ethers.getContract("FundMe", deployer);
               mockV3Aggregator = await ethers.getContract(
                   "MockV3Aggregator",
@@ -32,13 +33,9 @@ const { developmentChains } = require("../../helper-hardhat-config")
               it("sets owner addresses correctly", async () => {
                 expect(await fundMe.getOwner()).to.be.equal(deployer);
               })
- 
-              it("check target funds are true", async () => {
-                  expect(await fundMe.getTargetFunds()).to.be.equal(1000000);
-              })
 
               it("check deadline is true", async () => {
-                expect(await fundMe.getDeadLine()).to.be.equal(1697229430);
+                expect(await fundMe.getDeadLine()).to.be.equal(1697398220);
               })
           })
 
@@ -62,7 +59,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
 
               
               it("Updates the amount funded data structure", async () => {
-                // addr1 funds 
+                // addr2 funds 
                 await expect( fundMe.connect( addr2 ).fund({ value: sendValue }))
                 .to.emit( fundMe, "Funded" ).withArgs( await addr2.address, sendValue );
 
@@ -73,10 +70,19 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   const response = await fundMe.getFunder(0)
                   assert.equal(response, deployer)
               })
+
+              it("if timestamp greater than deadline the fund function should be revert", async function () {
+                
+                await network.provider.send("evm_setNextBlockTimestamp", [1697398300])
+                await expect( fundMe.connect( addr2 ).fund({ value: sendValue }))
+                 .to.be.revertedWith("The event is not enable")
+
+              })
+
           })
           describe("withdraw", function () {
               beforeEach(async () => {
-                  await fundMe.fund({ value: sendValue })
+                  await fundMe.fund({ value: ethers.utils.parseEther("6000") })
               })
               it("withdraws ETH from a single funder", async () => {
                   // Arrange
@@ -106,7 +112,21 @@ const { developmentChains } = require("../../helper-hardhat-config")
                           .toString(),
                       endingDeployerBalance.add(gasCost).toString()
                   )
+
+
+
+                  it("withdraw emit && fundsWithdrawn && isFundEnabled && isFundSuccess after Withdraw", async () => {
+
+                    await expect( fundMe.cheaperWithdraw() )
+                     .to.emit( fundMe, "OwnerWithdrow" ).withArgs( await fundMe.balance );
+
+                     assert.equal(fundMe.fundsWithdrawn, true);
+                     assert.equal(fundMe.isFundEnabled, false);
+                     assert.equal(fundMe.isFundSuccess, true);
+    
+                  })
               })
+
               // this test is overloaded. Ideally we'd split it into multiple tests
               // but for simplicity we left it as one
               it("is allows us to withdraw with multiple funders", async () => {
@@ -128,7 +148,8 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   // Let's comapre gas costs :)
                   // const transactionResponse = await fundMe.withdraw()
                   const transactionReceipt = await transactionResponse.wait()
-                  const { gasUsed, effectiveGasPrice } = transactionReceipt
+                  
+                  const { gasUsed, effectiveGasPrice } = transactionReceipt;
                   const withdrawGasCost = gasUsed.mul(effectiveGasPrice)
                   console.log(`GasCost: ${withdrawGasCost}`)
                   console.log(`GasUsed: ${gasUsed}`)
@@ -156,6 +177,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                           0
                       )
                   }
+
               })
               it("Only allows the owner to withdraw", async function () {
                   const accounts = await ethers.getSigners()
@@ -166,5 +188,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       fundMeConnectedContract.cheaperWithdraw()
                   ).to.be.revertedWith("FundMe__NotOwner")
               })
+
           })
+ 
       })
