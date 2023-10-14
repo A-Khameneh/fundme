@@ -29,7 +29,6 @@ contract FundMe {
     // Events
     event Funded(address _funder, uint256 _amount); 
     event OwnerWithdrow(uint256 _amount); 
-    event FunderWithdraw(address _funder, uint256 _amount); 
 
     // Modifiers
     modifier onlyOwner() {

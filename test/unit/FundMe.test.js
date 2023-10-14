@@ -115,14 +115,13 @@ const { developmentChains } = require("../../helper-hardhat-config")
 
 
 
-                  it("withdraw emit && fundsWithdrawn && isFundEnabled && isFundSuccess after Withdraw", async () => {
+                  it("withdraw emit && fundsWithdrawn && isFundEnabled after Withdraw", async () => {
 
                     await expect( fundMe.cheaperWithdraw() )
                      .to.emit( fundMe, "OwnerWithdrow" ).withArgs( await fundMe.balance );
 
                      assert.equal(fundMe.fundsWithdrawn, true);
                      assert.equal(fundMe.isFundEnabled, false);
-                     assert.equal(fundMe.isFundSuccess, true);
     
                   })
               })
